@@ -9,3 +9,10 @@
 .DS_Store
 .idea/
 .vscode/
+
+# Generated documentation. Rebuild with `make docs`; never edit/commit directly.
+/docs/dist/
+/docs/DEVELOPER_GUIDE.md
+/docs/DEVELOPER_HANDBOOK.md
+/docs/code-reference/
+/docs/.vitepress/cache/

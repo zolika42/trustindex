@@ -25,6 +25,11 @@ jobs:
           coverage: xdebug
           tools: composer:v2
 
+      - name: Set up Node for documentation
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Validate Composer metadata
         run: composer validate --strict
 
@@ -52,6 +57,17 @@ jobs:
 
       - name: Coverage gate
         run: make coverage COVERAGE_MIN=90
+
+      - name: Build and smoke-test documentation
+        run: make docs-smoke
+
+      - name: Upload HTML documentation
+        uses: actions/upload-artifact@v4
+        with:
+          name: trustindex-documentation-html
+          path: docs/dist
+          if-no-files-found: error
+          retention-days: 14
 
   demo-container:
     name: Disposable demo server smoke test

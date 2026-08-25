@@ -2,35 +2,27 @@
 
 A small but production-minded **Symfony 7.4 / PHP 8.2+** application for publishing and browsing company reviews.
 
-The assignment intentionally asks for more than “it works”: clean structure, Symfony conventions, Doctrine ORM, forms/validation, aggregation logic and automated tests all matter. This repository therefore keeps the domain deliberately small while giving the delivery pipeline the same care as the application code.
+The assignment intentionally asks for more than “it works”: clean structure, Symfony conventions, Doctrine ORM, forms/validation, aggregation logic and automated tests all matter. This repository therefore keeps the domain deliberately small while giving the delivery pipeline, documentation and developer experience the same care as the application code.
 
 ## Highlights
 
 - Public review list on `/`
 - Symfony Form based review submission on `/reviews/new`
-- Required validation:
-  - every field is required
-  - rating is an integer from 1 to 5
-  - author email must be valid
+- Required validation for all fields, integer rating 1–5 and valid email
 - Exact success flash message: `Köszönjük a véleményed!`
 - Review detail page on `/reviews/{id}`
-- Company statistics on `/companies`
-  - review count
-  - average rating
-  - descending average-rating ordering
-  - deterministic tie-breakers
-- Bonus company-name search
-- Extra rating filter on the review feed
-- Extra transparent rating signal (`Excellent`, `Very good`, etc.) on the company leaderboard
-- Reviewer email is intentionally **not rendered publicly**
+- Company statistics on `/companies` with deterministic average/count/name ordering
+- Bonus company-name search and rating filter
+- Reviewer email intentionally **never rendered publicly**
 - Doctrine attribute mapping + committed migration
 - SQLite by default for zero-friction evaluation
-- Demo seed command
 - PHPUnit unit, integration and functional tests
 - Meaningful-code coverage gate (90%)
-- php-cs-fixer with Symfony rules
-- GitHub Actions CI
+- php-cs-fixer + Symfony/Twig/YAML linting
 - Disposable Docker demo server smoke-tested in CI
+- **Self-documenting PHP source enforced by the documentation generator**
+- **VitePress documentation portal with generated Developer Guide, handbook and code reference**
+- **Documentation HTML built and uploaded by CI on every push/PR**
 - Makefile as the single developer entry point
 
 ## Requirements
@@ -38,9 +30,10 @@ The assignment intentionally asks for more than “it works”: clean structure,
 - PHP 8.2+
 - Composer 2
 - PHP extensions: `ctype`, `iconv`, `pdo_sqlite`
-- Optional:
-  - Xdebug for local coverage
-  - Docker + Docker Compose for the disposable demo environment
+- Node.js + npm/npx for documentation generation
+- GNU Make
+- Optional: Xdebug for local coverage
+- Optional: Docker + Docker Compose for the disposable app/docs environment
 
 ## Quick start
 
@@ -58,32 +51,69 @@ Open:
 - http://127.0.0.1:8000/companies
 - http://127.0.0.1:8000/reviews/new
 
-`make setup` installs dependencies, recreates the SQLite database, runs migrations and adds deterministic demo data.
+`make setup` installs dependencies, recreates the SQLite database, runs migrations, adds deterministic demo data **and rebuilds the documentation portal**.
+
+## Documentation layer
+
+The project uses the same documentation philosophy as the ColumbiaGames CCM v2 codebase: maintained architectural knowledge stays in Markdown, while facts that already exist in executable code are generated from the repository.
+
+Canonical documentation sources:
+
+- `docs/index.md` — documentation hub
+- `docs/architecture/` — boundaries and responsibility map
+- `docs/domain-model.md` — persisted model and invariants
+- `docs/request-flows.md` — HTTP/form/query lifecycles
+- `docs/testing.md` — testing and quality strategy
+- `docs/operations.md` — local/Docker/CI troubleshooting
+- `docs/documentation-standards.md` — mandatory documentation rules
+- `docs/documentation-runtime.md` — automatic freshness pipeline
+- PHPDoc under `src/` — code-level contracts consumed by generated reference
+
+Generated on every docs build:
+
+- `docs/DEVELOPER_GUIDE.md`
+- `docs/DEVELOPER_HANDBOOK.md`
+- `docs/code-reference/index.md`
+- complete static HTML in `docs/dist/`
+
+Generated files are ignored by Git and must never be edited manually.
+
+```bash
+make docs          # generate reference + build static HTML
+make docs-smoke    # full documentation quality gate
+make docs-dev      # live VitePress authoring server on :8088
+make docs-up       # serve docs/dist through Nginx on :8088
+make docs-down
+make docs-logs
+```
+
+CI performs `make docs-smoke` and uploads `docs/dist` as the `trustindex-documentation-html` workflow artifact. Missing source PHPDoc or a broken documentation contract therefore fails CI rather than silently producing stale docs.
 
 ## Docker demo server
-
-The repository also contains a completely disposable, seeded test environment:
 
 ```bash
 make docker-up
 ```
 
-Then open http://127.0.0.1:8080/.
+Then open:
 
-Stop it with:
+- application: http://127.0.0.1:8080/
+- documentation: http://127.0.0.1:8088/
+
+Stop both with:
 
 ```bash
 make docker-down
 ```
 
-This same container is built and smoke-tested by GitHub Actions after the PHP quality gate passes.
+The application image is built and smoke-tested by GitHub Actions after the quality/documentation gate passes.
 
 ## Useful commands
 
 ```bash
 make help             # list all commands
 make install          # composer install
-make setup            # install + database + seed
+make setup            # install + database + seed + documentation
 make serve            # local app on :8000
 make db-reset         # recreate DB, migrate, seed
 make seed             # add demo data if DB is empty
@@ -96,194 +126,110 @@ make coverage         # Clover report + 90% meaningful-code gate
 make cs               # dry-run Symfony coding standards
 make cs-fix           # automatically fix formatting
 make lint             # DI container + YAML + Twig lint
-make qa               # cs + lint + PHPUnit
+make qa               # cs + lint + PHPUnit + docs gate
 make ci               # local equivalent of the main quality gate
+
+make docs
+make docs-smoke
+make docs-dev
+make docs-up
+make docs-down
+make docs-logs
 
 make docker-up
 make docker-down
 make docker-logs
 ```
 
-The assignment explicitly requires the tests to work with:
-
-```bash
-php bin/phpunit
-```
-
-That command is supported directly.
+The assignment explicitly requires tests to work with `php bin/phpunit`; that command is supported directly.
 
 ## Database and migrations
 
-The local application uses SQLite to keep evaluation fast and dependency-free.
-
-Run the committed migration manually (SQLite creates the database file on first connection):
+The local application uses SQLite to keep evaluation fast and dependency-free. The migration in `migrations/` represents the schema produced from the attribute-mapped `Review` entity.
 
 ```bash
 mkdir -p var
 php bin/console doctrine:migrations:migrate --no-interaction
 ```
 
-The migration in `migrations/` represents the schema produced from the attribute-mapped `Review` entity. For future schema changes:
+For future schema changes:
 
 ```bash
 php bin/console doctrine:migrations:diff
 php bin/console doctrine:migrations:migrate
+php bin/console doctrine:schema:validate
 ```
 
 ## Architecture
 
-The application follows standard Symfony responsibilities:
-
 ```text
-src/
-├── Command/
-│   └── SeedDemoCommand.php
-├── Controller/
-│   ├── CompanyController.php
-│   └── ReviewController.php
-├── Entity/
-│   └── Review.php
-├── Form/
-│   └── ReviewType.php
-├── Repository/
-│   └── ReviewRepository.php
-└── Service/
-    └── RatingClassifier.php
+Browser
+  -> Symfony Router
+     -> thin Controllers
+        -> Form + Validator -> Review entity -> Doctrine/SQLite
+        -> ReviewRepository -> aggregate/filter queries
+        -> RatingClassifier -> presentation band
+     -> Twig -> HTML
 ```
+
+Detailed architecture is maintained in `docs/architecture/index.md`; request-by-request behavior is documented in `docs/request-flows.md`.
 
 ### Repository responsibilities
 
-`ReviewRepository` owns query behavior rather than leaking QueryBuilder logic into controllers:
-
-- review feed ordering
-- company-name search
-- rating filtering
-- overall review statistics
-- per-company `COUNT` + `AVG` aggregation
-- deterministic leaderboard ordering
+`ReviewRepository` owns feed ordering, company-name search, rating filtering, overall statistics, per-company aggregation and deterministic leaderboard ordering. QueryBuilder logic does not leak into controllers or Twig.
 
 ### Controller responsibilities
 
-Controllers are intentionally thin:
-
-- parse request filters
-- coordinate form handling
-- persist valid entities
-- enrich already-calculated company statistics with a presentation label
-- render responses
+Controllers parse request filters, coordinate form handling/repositories, persist valid entities and render responses. Invalid submitted forms return controlled HTTP 422 responses.
 
 ### Privacy choice
 
-`author_email` is required and validated because the assignment asks for it, but it is never rendered on public review or company pages. A public review platform should not leak reviewer contact data as a side-effect of meeting a persistence requirement.
+`author_email` is required and validated because the assignment asks for it, but it is never rendered on public review or company pages. Functional tests protect this boundary.
 
 ## Testing strategy
 
-The suite avoids low-value getter/setter tests and targets behavior instead.
+The suite targets behavior rather than padding coverage with trivial accessor tests.
 
-### Unit
-
-`RatingClassifierTest`
-
-Tests the boundaries where customer-facing rating labels change.
-
-### Integration
-
-`ReviewRepositoryTest`
-
-Tests the important SQL/DQL behavior against a real SQLite database:
-
-- average calculation
-- review count
-- descending average-rating order
-- deterministic tie-break ordering
-- company search + rating filter interaction
-
-### Functional
-
-`ReviewFlowTest`
-
-Exercises the real HTTP/Form/Twig stack:
-
-- valid review submission
-- required flash message
-- redirect and public listing
-- review detail page
-- invalid form rejection
-- email privacy
-- company search
-- rating filter
-- aggregated company statistics
-
-### Coverage
-
-The coverage gate deliberately targets code where tests provide engineering value:
-
-- controllers
-- forms
-- repositories
-- services
-
-Entity accessors, the demo seed command and framework bootstrap are excluded from the coverage target rather than padded with meaningless tests.
+- **Unit:** rating-classification boundaries.
+- **Integration:** real SQLite repository aggregation/filter/order semantics.
+- **Functional:** real HTTP/Form/Twig submission, validation, redirect, flash, list/detail, privacy and filters.
 
 ```bash
+make test
 make coverage
 ```
 
-Default threshold: **90% line coverage**. Override locally if needed:
-
-```bash
-make coverage COVERAGE_MIN=95
-```
+Default meaningful-code threshold: **90% line coverage**.
 
 ## CI pipeline
 
-`.github/workflows/ci.yml` runs on pushes to `main` and on pull requests.
+`.github/workflows/ci.yml` runs on pushes to `main` and pull requests.
 
 Quality job:
 
-1. PHP 8.2 environment
-2. Composer metadata validation
-3. dependency install
+1. PHP 8.2 + Composer environment
+2. Node environment for documentation
+3. strict Composer validation and lock-file install
 4. Symfony coding-standard check
 5. container/YAML/Twig lint
-6. clean database migration
-7. Doctrine schema validation
-8. PHPUnit
-9. 90% meaningful-code coverage gate
+6. clean database migration + schema validation
+7. PHPUnit
+8. 90% meaningful-code coverage gate
+9. generated documentation contract validation
+10. VitePress static HTML build + smoke test
+11. HTML documentation artifact upload
 
-Demo-server job:
-
-1. build the Docker image
-2. start a temporary seeded server
-3. smoke-test `/`, `/companies` and `/reviews/new`
-4. print container logs automatically on failure
-
-No external test server credentials are required.
+Demo-server job then builds the Docker application image, starts a temporary seeded server and smoke-tests `/`, `/companies` and `/reviews/new`.
 
 ## Implementation notes / trade-offs
 
-- **SQLite** is used by default because the assignment does not require a specific RDBMS and it makes reviewer setup almost instant.
-- The data model stays exactly focused on the requested `Review` entity instead of introducing speculative company/user tables.
-- Company statistics are derived from reviews in SQL/DQL; no duplicated aggregate state is stored.
-- Search remains simple (`LIKE`) because the exercise dataset does not justify a search engine.
-- Rating filtering is implemented as a small useful extra without changing the required data model.
-- The project avoids unnecessary packages and frontend build tooling.
-- Custom CSS keeps the UI polished while leaving the PHP/Symfony work easy to inspect.
-
-## Approximate work log
-
-This was developed as an AI-assisted pair-programming exercise; the following is an approximate active-effort breakdown rather than a claim of stopwatch precision.
-
-| Area | Approx. effort |
-|---|---:|
-| Requirements analysis and project structure | 0:30 |
-| Doctrine entity, migration and repository queries | 0:55 |
-| Controllers, form handling and validation | 0:45 |
-| Twig UI, responsive styling and UX pass | 0:55 |
-| Unit/integration/functional tests | 0:55 |
-| Makefile, Docker demo environment and CI | 0:45 |
-| README, cleanup and review | 0:35 |
-| **Total** | **5:20** |
+- SQLite keeps evaluator setup immediate while migrations preserve disciplined schema evolution.
+- Company statistics are derived in SQL/DQL; duplicated aggregate state is not stored.
+- Search remains simple parameterized `LIKE` because the exercise dataset does not justify a search engine.
+- The rating filter is a small extra without expanding the requested data model.
+- Custom CSS keeps the UI polished while PHP/Symfony remains easy to inspect.
+- Documentation facts that can be derived from code are generated rather than duplicated manually.
+- Architectural intent remains maintained Markdown because intent cannot be reconstructed reliably from syntax.
 
 ## AI usage
 
@@ -291,15 +237,13 @@ AI assistance was used as a development tool for scaffolding, review, test-case 
 
 ## What I would add in a real production iteration
 
-Not required for this exercise, but natural next steps would be:
-
 - authentication and verified reviewer identity
 - moderation/reporting workflow
 - pagination for large review volumes
 - rate limiting / anti-spam protection
-- database-specific full-text search when dataset size justifies it
+- database-specific full-text search when justified
 - observability and error tracking
-- deployment environment secrets and managed persistent database
+- deployment secrets and managed persistent database
 
 ---
 

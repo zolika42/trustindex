@@ -12,5 +12,12 @@ services:
     volumes:
       - demo_var:/app/var
 
+  docs:
+    image: nginx:1.27-alpine
+    ports:
+      - "8088:80"
+    volumes:
+      - ./docs/dist:/usr/share/nginx/html:ro
+
 volumes:
   demo_var:

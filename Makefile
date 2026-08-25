@@ -4,8 +4,12 @@ COMPOSER ?= composer
 CONSOLE := $(PHP) bin/console
 PHPUNIT := $(PHP) bin/phpunit
 COVERAGE_MIN ?= 90
+NPX ?= npx
+VITEPRESS_VERSION ?= 1.6.4
+DOCS_PORT ?= 8088
+VITEPRESS := $(NPX) --yes vitepress@$(VITEPRESS_VERSION)
 
-.PHONY: help install setup serve db-reset seed test test-unit test-functional coverage cs cs-fix lint qa ci docker-up docker-down docker-logs
+.PHONY: help install setup serve db-reset seed test test-unit test-functional coverage cs cs-fix lint qa ci docker-up docker-down docker-logs docs-generate docs docs-dev docs-check docs-smoke docs-up docs-down docs-logs
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n\nTargets:\n"} /^[a-zA-Z0-9_-]+:.*?##/ { printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -13,7 +17,7 @@ help: ## Show available commands
 install: ## Install Composer dependencies
 	$(COMPOSER) install --prefer-dist --no-interaction
 
-setup: install db-reset ## Install dependencies, migrate DB and seed demo data
+setup: install db-reset docs ## Install dependencies, reset DB, seed demo data and rebuild docs
 	@echo "Application ready. Run: make serve"
 
 serve: ## Run the local Symfony/PHP test server at http://127.0.0.1:8000
@@ -52,18 +56,47 @@ lint: ## Lint container, YAML and Twig
 	$(CONSOLE) lint:yaml config --parse-tags
 	$(CONSOLE) lint:twig templates
 
-qa: cs lint test ## Run local quality gate
+docs-generate: ## Generate repository-derived Developer Guide/Handbook/code reference
+	$(PHP) bin/build-docs.php
+
+docs: docs-generate ## Build the complete static VitePress HTML documentation
+	$(VITEPRESS) build docs
+
+docs-dev: docs-generate ## Run VitePress with live reload on http://127.0.0.1:8088
+	$(VITEPRESS) dev docs --host 127.0.0.1 --port $(DOCS_PORT)
+
+docs-check: docs ## Build documentation and verify required generated HTML entry points
+	test -f docs/dist/index.html
+	test -f docs/dist/DEVELOPER_GUIDE.html
+	test -f docs/dist/DEVELOPER_HANDBOOK.html
+	test -f docs/dist/code-reference/index.html
+
+docs-smoke: docs-check ## Smoke-check important documentation content
+	grep -q "Trustindex Reviews documentation" docs/dist/index.html
+	grep -q "Developer guide" docs/dist/DEVELOPER_GUIDE.html
+	grep -q "Generated code reference" docs/dist/code-reference/index.html
+
+qa: cs lint test docs-smoke ## Run source, application and documentation quality gates
 
 ci: ## Reproduce the main CI quality gate locally
 	$(COMPOSER) validate --strict
 	$(MAKE) qa
 	$(MAKE) coverage
 
-docker-up: ## Build and run the seeded demo server at http://127.0.0.1:8080
-	docker compose up --build -d
+docker-up: docs ## Build/run the seeded demo and documentation services
+	docker compose up --build -d app docs
 
-docker-down: ## Stop the demo server
+docker-down: ## Stop the local Docker services
 	docker compose down
 
 docker-logs: ## Follow demo server logs
 	docker compose logs -f app
+
+docs-up: docs ## Serve generated documentation at http://127.0.0.1:8088
+	docker compose up -d docs
+
+docs-down: ## Stop only the documentation service
+	docker compose stop docs
+
+docs-logs: ## Follow documentation service logs
+	docker compose logs -f docs
