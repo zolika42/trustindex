@@ -37,7 +37,7 @@ final class ReviewRepositoryTest extends KernelTestCase
 
         $statistics = $this->repository->getCompanyStatistics();
 
-        self::assertSame(['Beta', 'Charlie', 'Acme'], array_column($statistics, 'companyName'));
+        self::assertSame(['Beta', 'Acme', 'Charlie'], array_column($statistics, 'companyName'));
         self::assertSame(5.0, $statistics[0]['averageRating']);
         self::assertSame(4.0, $statistics[1]['averageRating']);
         self::assertSame(2, $statistics[1]['reviewCount']);
