@@ -9,7 +9,7 @@ $root = dirname(__DIR__);
 $autoload = $root.'/vendor/autoload.php';
 
 if (!is_file($autoload)) {
-    fwrite(STDERR, "[docs] vendor/autoload.php is missing. Run `make install` first.\n");
+    fwrite(\STDERR, "[docs] vendor/autoload.php is missing. Run `make install` first.\n");
     exit(1);
 }
 
@@ -33,7 +33,7 @@ $requiredFiles = [
 
 foreach ($requiredFiles as $requiredFile) {
     if (!is_file($root.'/'.$requiredFile)) {
-        fwrite(STDERR, "[docs] Required documentation source is missing: {$requiredFile}\n");
+        fwrite(\STDERR, "[docs] Required documentation source is missing: {$requiredFile}\n");
         exit(1);
     }
 }
@@ -165,7 +165,7 @@ function validateSourceDocumentation(array $classes, string $root): void
     }
 
     if ([] !== $failures) {
-        fwrite(STDERR, "[docs] Source documentation contract failed:\n - ".implode("\n - ", $failures)."\n");
+        fwrite(\STDERR, "[docs] Source documentation contract failed:\n - ".implode("\n - ", $failures)."\n");
         exit(1);
     }
 
@@ -181,7 +181,7 @@ function validateSourceDocumentation(array $classes, string $root): void
             || str_starts_with($path, 'docs/dist/');
 
         if ($generated) {
-            fwrite(STDERR, "[docs] Generated output must not be tracked: {$path}\n");
+            fwrite(\STDERR, "[docs] Generated output must not be tracked: {$path}\n");
             exit(1);
         }
     }
@@ -235,20 +235,20 @@ $requiredTargets = [
 ];
 $missingTargets = array_values(array_diff($requiredTargets, $makeTargets));
 if ([] !== $missingTargets) {
-    fwrite(STDERR, '[docs] Makefile targets referenced by documentation are missing: '.implode(', ', $missingTargets)."\n");
+    fwrite(\STDERR, '[docs] Makefile targets referenced by documentation are missing: '.implode(', ', $missingTargets)."\n");
     exit(1);
 }
 
 $compose = file_get_contents($root.'/compose.yaml') ?: '';
 foreach (['8080:8000', '8088:80'] as $portContract) {
     if (!str_contains($compose, $portContract)) {
-        fwrite(STDERR, "[docs] compose.yaml no longer contains documented port contract {$portContract}.\n");
+        fwrite(\STDERR, "[docs] compose.yaml no longer contains documented port contract {$portContract}.\n");
         exit(1);
     }
 }
 
 /** @var array{require?: array<string, string>} $composer */
-$composer = json_decode((string) file_get_contents($root.'/composer.json'), true, 512, JSON_THROW_ON_ERROR);
+$composer = json_decode((string) file_get_contents($root.'/composer.json'), true, 512, \JSON_THROW_ON_ERROR);
 $classes = discoverApplicationClasses($root);
 validateSourceDocumentation($classes, $root);
 $routes = discoverRoutes($classes);
@@ -485,7 +485,7 @@ file_put_contents($root.'/docs/DEVELOPER_HANDBOOK.md', $handbook);
 file_put_contents($root.'/docs/code-reference/index.md', $codeReference);
 
 fwrite(
-    STDOUT,
+    \STDOUT,
     sprintf(
         "[docs] Generated guide, handbook and code reference from %d classes and %d routes.\n",
         count($classes),
