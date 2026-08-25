@@ -3,9 +3,6 @@
 
 declare(strict_types=1);
 
-use ReflectionClass;
-use ReflectionMethod;
-use ReflectionParameter;
 use Symfony\Component\Routing\Attribute\Route;
 
 $root = dirname(__DIR__);
@@ -41,7 +38,11 @@ foreach ($requiredFiles as $requiredFile) {
     }
 }
 
-/** @return list<string> */
+/**
+ * Extracts concrete Make targets so generated onboarding never advertises deleted commands.
+ *
+ * @return list<string>
+ */
 function parseMakeTargets(string $source): array
 {
     preg_match_all('/^([a-zA-Z0-9_-]+):/m', $source, $matches);
@@ -52,7 +53,11 @@ function parseMakeTargets(string $source): array
     )));
 }
 
-/** @return list<string> */
+/**
+ * Converts the PSR-4 `src/` tree into application class names without maintaining a second inventory.
+ *
+ * @return list<string>
+ */
 function discoverApplicationClasses(string $root): array
 {
     $classes = [];
@@ -63,7 +68,7 @@ function discoverApplicationClasses(string $root): array
             continue;
         }
 
-        $relative = substr($file->getPathname(), strlen($root.'/src/') );
+        $relative = substr($file->getPathname(), strlen($root.'/src/'));
         $classes[] = 'App\\'.str_replace('/', '\\', substr($relative, 0, -4));
     }
 
@@ -72,57 +77,67 @@ function discoverApplicationClasses(string $root): array
     return $classes;
 }
 
+/**
+ * Reduces a PHPDoc block to its first prose paragraph for compact generated tables/reference pages.
+ */
 function docSummary(string|false $docComment): string
 {
     if (false === $docComment) {
         return '';
     }
 
-    $lines = preg_split('/\R/', $docComment) ?: [];
     $summary = [];
-
-    foreach ($lines as $line) {
+    foreach (preg_split('/\R/', $docComment) ?: [] as $line) {
         $line = trim(preg_replace('/^\s*\/\*\*|\*\/\s*$|^\s*\*\s?/', '', $line) ?? '');
+
         if ('' === $line && [] !== $summary) {
             break;
         }
         if ('' === $line || str_starts_with($line, '@')) {
             continue;
         }
+
         $summary[] = $line;
     }
 
     return implode(' ', $summary);
 }
 
-function reflectionType(?ReflectionType $type): string
-{
-    return null === $type ? '' : (string) $type;
-}
-
-function parameterSignature(ReflectionParameter $parameter): string
-{
-    $type = reflectionType($parameter->getType());
-    $signature = ('' === $type ? '' : $type.' ').($parameter->isPassedByReference() ? '&' : '').($parameter->isVariadic() ? '...' : '').'$'.$parameter->getName();
-
-    if ($parameter->isOptional() && !$parameter->isVariadic()) {
-        $signature .= ' = …';
-    }
-
-    return $signature;
-}
-
+/**
+ * Builds a readable Reflection method signature for the generated source reference.
+ */
 function methodSignature(ReflectionMethod $method): string
 {
     $visibility = $method->isPublic() ? 'public' : ($method->isProtected() ? 'protected' : 'private');
     $static = $method->isStatic() ? ' static' : '';
-    $parameters = implode(', ', array_map(parameterSignature(...), $method->getParameters()));
-    $return = reflectionType($method->getReturnType());
+    $parameters = [];
 
-    return sprintf('%s%s function %s(%s)%s', $visibility, $static, $method->getName(), $parameters, '' === $return ? '' : ': '.$return);
+    foreach ($method->getParameters() as $parameter) {
+        $type = null === $parameter->getType() ? '' : (string) $parameter->getType().' ';
+        $parameters[] = $type
+            .($parameter->isPassedByReference() ? '&' : '')
+            .($parameter->isVariadic() ? '...' : '')
+            .'$'.$parameter->getName()
+            .($parameter->isOptional() && !$parameter->isVariadic() ? ' = …' : '');
+    }
+
+    $returnType = null === $method->getReturnType() ? '' : ': '.$method->getReturnType();
+
+    return sprintf(
+        '%s%s function %s(%s)%s',
+        $visibility,
+        $static,
+        $method->getName(),
+        implode(', ', $parameters),
+        $returnType,
+    );
 }
 
-/** @param list<string> $classes */
+/**
+ * Enforces the self-documenting-source policy and prevents generated output from becoming tracked state.
+ *
+ * @param list<string> $classes
+ */
 function validateSourceDocumentation(array $classes, string $root): void
 {
     $failures = [];
@@ -156,18 +171,28 @@ function validateSourceDocumentation(array $classes, string $root): void
 
     $tracked = [];
     exec('git -C '.escapeshellarg($root).' ls-files docs 2>/dev/null', $tracked, $status);
-    if (0 === $status) {
-        foreach ($tracked as $path) {
-            if (in_array($path, ['docs/DEVELOPER_GUIDE.md', 'docs/DEVELOPER_HANDBOOK.md'], true) || str_starts_with($path, 'docs/code-reference/') || str_starts_with($path, 'docs/dist/')) {
-                fwrite(STDERR, "[docs] Generated output must not be tracked: {$path}\n");
-                exit(1);
-            }
+    if (0 !== $status) {
+        return;
+    }
+
+    foreach ($tracked as $path) {
+        $generated = in_array($path, ['docs/DEVELOPER_GUIDE.md', 'docs/DEVELOPER_HANDBOOK.md'], true)
+            || str_starts_with($path, 'docs/code-reference/')
+            || str_starts_with($path, 'docs/dist/');
+
+        if ($generated) {
+            fwrite(STDERR, "[docs] Generated output must not be tracked: {$path}\n");
+            exit(1);
         }
     }
 }
 
-/** @param list<string> $classes
- *  @return list<array{method: string, path: string, name: string, handler: string}>
+/**
+ * Reflects Symfony route attributes so the generated guide always lists the current HTTP surface.
+ *
+ * @param list<string> $classes
+ *
+ * @return list<array{method: string, path: string, name: string, handler: string}>
  */
 function discoverRoutes(array $classes): array
 {
@@ -190,7 +215,10 @@ function discoverRoutes(array $classes): array
         }
     }
 
-    usort($routes, static fn (array $left, array $right): int => [$left['path'], $left['method']] <=> [$right['path'], $right['method']]);
+    usort(
+        $routes,
+        static fn (array $left, array $right): int => [$left['path'], $left['method']] <=> [$right['path'], $right['method']],
+    );
 
     return $routes;
 }
@@ -199,8 +227,12 @@ $makefile = file_get_contents($root.'/Makefile');
 if (false === $makefile) {
     throw new RuntimeException('Cannot read Makefile.');
 }
+
 $makeTargets = parseMakeTargets($makefile);
-$requiredTargets = ['install', 'setup', 'serve', 'db-reset', 'seed', 'test', 'coverage', 'cs', 'lint', 'qa', 'ci', 'docker-up', 'docker-down', 'docs', 'docs-smoke', 'docs-up', 'docs-down'];
+$requiredTargets = [
+    'install', 'setup', 'serve', 'db-reset', 'seed', 'test', 'coverage', 'cs', 'lint',
+    'qa', 'ci', 'docker-up', 'docker-down', 'docs', 'docs-smoke', 'docs-up', 'docs-down',
+];
 $missingTargets = array_values(array_diff($requiredTargets, $makeTargets));
 if ([] !== $missingTargets) {
     fwrite(STDERR, '[docs] Makefile targets referenced by documentation are missing: '.implode(', ', $missingTargets)."\n");
@@ -210,25 +242,27 @@ if ([] !== $missingTargets) {
 $compose = file_get_contents($root.'/compose.yaml') ?: '';
 foreach (['8080:8000', '8088:80'] as $portContract) {
     if (!str_contains($compose, $portContract)) {
-        fwrite(STDERR, "[docs] compose.yaml no longer contains required documented port contract {$portContract}.\n");
+        fwrite(STDERR, "[docs] compose.yaml no longer contains documented port contract {$portContract}.\n");
         exit(1);
     }
 }
 
+/** @var array{require?: array<string, string>} $composer */
 $composer = json_decode((string) file_get_contents($root.'/composer.json'), true, 512, JSON_THROW_ON_ERROR);
 $classes = discoverApplicationClasses($root);
 validateSourceDocumentation($classes, $root);
 $routes = discoverRoutes($classes);
 
-$requirements = [];
+$requirementRows = [];
 foreach (($composer['require'] ?? []) as $package => $constraint) {
-    $requirements[] = "| `{$package}` | `{$constraint}` |";
+    $requirementRows[] = "| `{$package}` | `{$constraint}` |";
 }
 
 $routeRows = array_map(
     static fn (array $route): string => "| `{$route['method']}` | `{$route['path']}` | `{$route['name']}` | `{$route['handler']}` |",
     $routes,
 );
+$routeTable = implode("\n", $routeRows);
 
 $classRows = [];
 $codeSections = [];
@@ -238,15 +272,19 @@ foreach ($classes as $className) {
     $relativeFile = str_replace($root.'/', '', (string) $class->getFileName());
     $classRows[] = "| `{$className}` | `{$relativeFile}` | {$summary} |";
 
-    $methods = [];
+    $methodSections = [];
     $classFile = realpath((string) $class->getFileName());
     foreach ($class->getMethods() as $method) {
         if (realpath((string) $method->getFileName()) !== $classFile) {
             continue;
         }
-        $methods[] = "### `{$method->getName()}()`\n\n{$summaryMethod = docSummary($method->getDocComment())}\n\n```php\n".methodSignature($method)."\n```";
+
+        $methodSummary = docSummary($method->getDocComment());
+        $signature = methodSignature($method);
+        $methodSections[] = "### `{$method->getName()}()`\n\n{$methodSummary}\n\n```php\n{$signature}\n```";
     }
-    $codeSections[] = "## `{$className}`\n\n**Source:** `{$relativeFile}`\n\n{$summary}\n\n".implode("\n\n", $methods);
+
+    $codeSections[] = "## `{$className}`\n\n**Source:** `{$relativeFile}`\n\n{$summary}\n\n".implode("\n\n", $methodSections);
 }
 
 $phpConstraint = $composer['require']['php'] ?? 'see composer.json';
@@ -255,7 +293,7 @@ $developerGuide = <<<MD
 
 > **Generated documentation. Do not edit this file directly.**
 >
-> This guide is regenerated by `php bin/build-docs.php`. Supported commands are validated against the current `Makefile`, runtime ports against `compose.yaml`, dependencies against `composer.json`, and HTTP routes are reflected from Symfony attributes.
+> `php bin/build-docs.php` regenerates this guide from the current repository. Make targets, Compose ports, Composer requirements and Symfony routes are validated/reflected instead of being maintained as a second manual inventory.
 
 This is the supported path from a clean development machine to a running, tested application and documentation portal.
 
@@ -264,13 +302,10 @@ This is the supported path from a clean development machine to a running, tested
 - PHP **{$phpConstraint}**
 - Composer 2
 - PHP extensions: `ctype`, `iconv`, `pdo_sqlite`
-- Node.js + npm/npx for the VitePress documentation portal
-- GNU Make
-- Git
+- Node.js + npm/npx for VitePress
+- GNU Make and Git
 - optional: Xdebug for local coverage
-- optional: Docker + Docker Compose v2 for disposable app/docs services
-
-Verify the toolchain before debugging application code:
+- optional: Docker + Docker Compose v2
 
 ```bash
 php --version
@@ -289,57 +324,50 @@ docker compose version
 git clone https://github.com/zolika42/trustindex.git
 cd trustindex
 make setup
-```
-
-`make setup` performs dependency installation, recreates the local SQLite database, runs migrations, seeds deterministic demo data and rebuilds the documentation portal.
-
-Start the non-Docker application:
-
-```bash
 make serve
 ```
 
-Open:
+`make setup` installs Composer dependencies, recreates the local SQLite database, runs migrations, seeds deterministic demo data and rebuilds the documentation portal.
+
+Local pages:
 
 - `http://127.0.0.1:8000/` — review feed
 - `http://127.0.0.1:8000/reviews/new` — review form
 - `http://127.0.0.1:8000/companies` — company leaderboard
 
-## 3. macOS setup
+## 3. macOS
 
-1. Install PHP 8.2+, Composer 2, Node.js, GNU Make and Git using your normal package manager.
-2. Confirm `pdo_sqlite` is enabled with `php -m | grep -i sqlite`.
-3. Clone the repository and run `make setup`.
-4. Run `make serve` in one terminal.
-5. Run `make docs-up` if you want the HTML documentation at `http://127.0.0.1:8088`.
-6. Before pushing, run `make ci`.
+1. Install PHP 8.2+, Composer 2, Node.js, GNU Make and Git.
+2. Confirm SQLite support with `php -m | grep -i sqlite`.
+3. Clone and run `make setup`.
+4. Run `make serve` for the application.
+5. Run `make docs-up` for the HTML documentation at `http://127.0.0.1:8088`.
+6. Run `make ci` before pushing.
 
-Docker Desktop is only required for the disposable container workflow; the normal Symfony development path does not require Docker.
+Docker Desktop is optional unless you want the disposable container workflow.
 
-## 4. Windows / WSL2 setup
+## 4. Windows / WSL2
 
-The supported Windows path is **WSL2** so the same Make/Bash/PHP commands used by CI remain valid.
+WSL2 is the supported Windows developer shell so local commands match CI.
 
-1. Enable WSL2 and install an Ubuntu distribution.
+1. Enable WSL2 and install Ubuntu.
 2. Install PHP 8.2+, `php-sqlite3`, Composer 2, Node.js, Make and Git inside WSL.
-3. Keep the repository in the WSL filesystem (for example `~/work/trustindex`) rather than under `/mnt/c` for better filesystem performance.
-4. From the WSL shell run `make setup` then `make serve`.
-5. Open `http://127.0.0.1:8000` from the Windows browser; WSL2 forwards localhost in normal configurations.
-6. If using Docker, enable WSL integration in Docker Desktop and verify `docker compose version` from the WSL shell.
+3. Keep the repository in the WSL filesystem, for example `~/work/trustindex`.
+4. Run `make setup` and `make serve` from WSL.
+5. Open `http://127.0.0.1:8000` from the Windows browser.
+6. For Docker, enable Docker Desktop WSL integration and verify `docker compose version` inside WSL.
 
-Native PowerShell can be used for Git/editor tasks, but repository Make targets and shell commands are designed for a POSIX shell and should be run from WSL2.
+PowerShell may be used for Git/editor tasks, but Make targets are designed for a POSIX shell.
 
 ## 5. Database workflow
 
 Local state lives in `var/app.db`.
 
-Reset to a known demo state:
-
 ```bash
 make db-reset
 ```
 
-For a mapping change:
+For mapping changes:
 
 ```bash
 php bin/console doctrine:migrations:diff
@@ -347,27 +375,25 @@ php bin/console doctrine:migrations:migrate --no-interaction
 php bin/console doctrine:schema:validate
 ```
 
-Commit the migration together with the entity change. Never commit SQLite database files from `var/`.
+Commit migrations with entity changes. Never commit SQLite files from `var/`.
 
-## 6. Normal development loop
+## 6. Daily development loop
 
 ```bash
-make serve
-# edit code
 make test
 make cs
 make lint
 make docs-smoke
 ```
 
-Use focused tests while iterating:
+Focused suites:
 
 ```bash
 make test-unit
 make test-functional
 ```
 
-Then run the complete local gate:
+Complete pre-push gate:
 
 ```bash
 make ci
@@ -379,90 +405,90 @@ make ci
 make coverage
 ```
 
-Xdebug must be available. The default meaningful-code threshold is **90%** and is enforced by `bin/check-coverage.php`.
+Xdebug must be available. `bin/check-coverage.php` enforces the default **90% meaningful-code line threshold**.
 
 ## 8. Docker demo
 
 ```bash
 make docker-up
-# app: http://127.0.0.1:8080
+# app:  http://127.0.0.1:8080
+# docs: http://127.0.0.1:8088
 make docker-logs
 make docker-down
 ```
 
-The application image runs migrations and deterministic demo seeding on startup. CI builds the same image and smoke-tests public routes.
+The application container runs migrations and deterministic demo seeding at startup. The docs service serves generated static HTML read-only through Nginx.
 
 ## 9. Documentation workflow
 
 ```bash
 make docs
 make docs-smoke
-make docs-up
-# docs: http://127.0.0.1:8088
-```
-
-`make docs` generates this guide, the developer handbook and code reference, then builds static VitePress HTML into `docs/dist/`.
-
-For documentation authoring with live reload:
-
-```bash
 make docs-dev
+make docs-up
+make docs-down
 ```
 
-Generated files are disposable and ignored by Git. Edit maintained Markdown under `docs/` or PHPDoc in `src/`, then regenerate.
+`make docs` generates this guide, the developer handbook and code reference, then builds static VitePress HTML into `docs/dist/`. Generated files are ignored by Git.
 
-## 10. Current HTTP routes
+## 10. Current Symfony routes
 
 | Method | Path | Route name | Handler |
 | --- | --- | --- | --- |
-%s
+{$routeTable}
 
 ## 11. Troubleshooting
 
-### Composer classes are missing
+### `vendor/autoload.php` missing
 
-Run `make install`. Both Symfony and the documentation reflection step require `vendor/autoload.php`.
+Run `make install`. Symfony and the Reflection-based docs generator both require installed dependencies.
 
-### Review form returns a validation error
+### Form submission returns 422
 
-Expected invalid input returns HTTP 422. Check field-level errors first; do not treat a controlled 422 as an application crash.
+HTTP 422 is the intentional response for submitted invalid review data. Inspect field errors before treating it as an application failure.
 
-### Database is in an unknown local state
+### Local database state is unknown
 
-Run `make db-reset` to recreate the SQLite database from migrations and deterministic seed data.
+Run `make db-reset` to reconstruct SQLite from committed migrations and deterministic demo seed data.
 
-### Documentation fails because a class/method has no PHPDoc
+### Docs build reports missing PHPDoc
 
-Add documentation that states responsibility, contract, side effects or invariants. This is a deliberate CI rule keeping source and generated reference synchronized.
+Document the class/method responsibility, contract, side effects or invariants. The guard is intentional and should not be bypassed.
 
 ### VitePress cannot start
 
-Confirm `node` and `npx` are available. The Makefile pins the VitePress version; no global install is expected.
+Verify `node` and `npx`. The Makefile pins VitePress; no global installation is required.
 
-### Docker app or docs port is occupied
+### Port conflict
 
-The standard ports are `8080` for the disposable application and `8088` for documentation. Stop the conflicting service or run the underlying tool with a different host mapping.
+Standard ports are `8000` (local PHP server), `8080` (Docker app) and `8088` (documentation).
 
-## 12. Definition of done for a code change
+## 12. Definition of done
 
-- implementation follows the responsibility boundaries documented under `docs/architecture`;
-- source PHPDoc is present and meaningful;
-- relevant maintained Markdown is updated when behavior/architecture changes;
-- migration exists for schema changes;
-- tests protect changed behavior;
+- implementation respects documented responsibility boundaries;
+- application classes/methods have meaningful PHPDoc;
+- maintained Markdown changes with architecture/runtime behavior;
+- schema changes have migrations;
+- behavior changes have tests;
 - `make ci` is green;
-- `make docs-smoke` builds a valid HTML portal;
+- `make docs-smoke` builds valid HTML;
 - reviewer email remains outside public output unless requirements explicitly change.
 MD;
-$developerGuide = sprintf($developerGuide, implode("\n", $routeRows));
 
-$handbook = "# Generated developer handbook\n\n> **Generated documentation. Do not edit directly.** The content below is derived from the current repository by `bin/build-docs.php`.\n\n## Composer requirements\n\n| Package | Constraint |\n| --- | --- |\n".implode("\n", $requirements)."\n\n## Make targets\n\n".implode("\n", array_map(static fn (string $target): string => "- `{$target}`", $makeTargets))."\n\n## Symfony routes\n\n| Method | Path | Route name | Handler |\n| --- | --- | --- | --- |\n".implode("\n", $routeRows)."\n\n## Application classes\n\n| Class | Source | Responsibility |\n| --- | --- | --- |\n".implode("\n", $classRows)."\n\n## Documentation contract\n\n- Maintained architecture/operations knowledge lives in tracked Markdown under `docs/`.\n- Application class/method PHPDoc is mandatory and validated by the generator.\n- Generated guide/handbook/code-reference/HTML are not committed.\n- CI rebuilds the portal on every push/PR.\n";
+$handbook = "# Generated developer handbook\n\n> **Generated documentation. Do not edit directly.** Repository facts below come from `bin/build-docs.php`.\n\n## Composer requirements\n\n| Package | Constraint |\n| --- | --- |\n".implode("\n", $requirementRows)."\n\n## Make targets\n\n".implode("\n", array_map(static fn (string $target): string => "- `{$target}`", $makeTargets))."\n\n## Symfony routes\n\n| Method | Path | Route name | Handler |\n| --- | --- | --- | --- |\n{$routeTable}\n\n## Application classes\n\n| Class | Source | Responsibility |\n| --- | --- | --- |\n".implode("\n", $classRows)."\n\n## Documentation contract\n\n- Maintained intent/architecture lives in tracked Markdown under `docs/`.\n- Application PHPDoc is mandatory and generator-validated.\n- Generated guide/handbook/code-reference/HTML are disposable.\n- CI rebuilds the documentation portal on every push/PR.\n";
 
-$codeReference = "# Generated code reference\n\n> Generated from application Reflection metadata and source PHPDoc by `bin/build-docs.php`. Do not edit directly.\n\n".implode("\n\n", $codeSections)."\n";
+$codeReference = "# Generated code reference\n\n> Generated from application Reflection metadata and source PHPDoc. Do not edit directly.\n\n".implode("\n\n", $codeSections)."\n";
 
 @mkdir($root.'/docs/code-reference', 0777, true);
 file_put_contents($root.'/docs/DEVELOPER_GUIDE.md', $developerGuide);
 file_put_contents($root.'/docs/DEVELOPER_HANDBOOK.md', $handbook);
 file_put_contents($root.'/docs/code-reference/index.md', $codeReference);
 
-fwrite(STDOUT, sprintf("[docs] Generated guide, handbook and code reference from %d classes and %d routes.\n", count($classes), count($routes)));
+fwrite(
+    STDOUT,
+    sprintf(
+        "[docs] Generated guide, handbook and code reference from %d classes and %d routes.\n",
+        count($classes),
+        count($routes),
+    ),
+);
