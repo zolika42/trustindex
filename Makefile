@@ -6,8 +6,9 @@ PHPUNIT := $(PHP) bin/phpunit
 COVERAGE_MIN ?= 90
 NPX ?= npx
 VITEPRESS_VERSION ?= 1.6.4
+VUE_VERSION ?= 3.5.21
 DOCS_PORT ?= 8088
-VITEPRESS := $(NPX) --yes vitepress@$(VITEPRESS_VERSION)
+VITEPRESS := $(NPX) --yes --package=vitepress@$(VITEPRESS_VERSION) --package=vue@$(VUE_VERSION) vitepress
 
 .PHONY: help install setup serve db-reset seed test test-unit test-functional coverage cs cs-fix lint qa ci docker-up docker-down docker-logs docs-generate docs docs-dev docs-check docs-smoke docs-up docs-down docs-logs
 
