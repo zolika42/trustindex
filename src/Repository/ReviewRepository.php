@@ -6,19 +6,31 @@ namespace App\Repository;
 
 use App\Entity\Review;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
+ * Central read/query boundary for reviews and company projections.
+ *
+ * Controllers deliberately delegate filtering, aggregation and deterministic ordering here so DQL
+ * semantics remain testable against a real database and never leak into presentation code.
+ *
  * @extends ServiceEntityRepository<Review>
  */
 final class ReviewRepository extends ServiceEntityRepository
 {
+    /**
+     * Binds this repository service to the Review entity through Doctrine's manager registry.
+     */
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, Review::class);
     }
 
     /**
+     * Returns the public review feed newest-first with deterministic ID tie-breaking.
+     * Optional company substring search and exact star filtering are composed in the same query.
+     *
      * @return list<Review>
      */
     public function findForHomepage(?string $companySearch = null, ?int $rating = null): array
@@ -39,6 +51,9 @@ final class ReviewRepository extends ServiceEntityRepository
     }
 
     /**
+     * Produces the company leaderboard directly in the database instead of duplicating aggregate state.
+     * Rows are ordered by average DESC, count DESC and company ASC, then normalized to stable PHP types.
+     *
      * @return list<array{
      *     companyName: string,
      *     reviewCount: int,
@@ -77,6 +92,9 @@ final class ReviewRepository extends ServiceEntityRepository
     }
 
     /**
+     * Returns feed-level count/average statistics for the current company-search scope.
+     * A missing average is represented as null when no reviews match the query.
+     *
      * @return array{reviewCount: int, averageRating: float|null}
      */
     public function getOverallStatistics(?string $companySearch = null): array
@@ -95,10 +113,12 @@ final class ReviewRepository extends ServiceEntityRepository
         ];
     }
 
-    private function applyCompanySearch(
-        \Doctrine\ORM\QueryBuilder $queryBuilder,
-        ?string $companySearch,
-    ): void {
+    /**
+     * Adds a case-insensitive, parameterized company substring filter when non-empty search text exists.
+     * Parameter binding keeps user input outside executable DQL/SQL.
+     */
+    private function applyCompanySearch(QueryBuilder $queryBuilder, ?string $companySearch): void
+    {
         $companySearch = trim((string) $companySearch);
 
         if ('' === $companySearch) {

@@ -15,10 +15,19 @@ use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
 /**
+ * Defines the public review-submission form while leaving server-side data invariants on Review.
+ *
+ * Widget choices, labels, autocomplete hints and privacy help belong here; required/range/email/length
+ * correctness remains expressed by Validator attributes on the bound entity to avoid duplicated rules.
+ *
  * @extends AbstractType<Review>
  */
 final class ReviewType extends AbstractType
 {
+    /**
+     * Builds the complete browser-facing input contract, including an explicit empty rating choice so
+     * the user must actively select one through five stars rather than inheriting a silent default.
+     */
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
@@ -61,6 +70,9 @@ final class ReviewType extends AbstractType
             ]);
     }
 
+    /**
+     * Binds submitted form data to Review so Symfony mapping and entity-level validation share one model.
+     */
     public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([

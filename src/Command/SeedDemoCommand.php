@@ -12,12 +12,21 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * Seeds a small deterministic review dataset for local evaluation and the disposable Docker demo.
+ *
+ * The command intentionally skips a non-empty database so repeated setup/container starts do not create
+ * duplicate demo rows or overwrite developer-entered reviews.
+ */
 #[AsCommand(
     name: 'app:seed-demo',
     description: 'Adds a small deterministic data set for local/demo use.',
 )]
 final class SeedDemoCommand extends Command
 {
+    /**
+     * Injects persistence plus the repository used to detect whether seeding is safe to perform.
+     */
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly ReviewRepository $reviews,
@@ -25,6 +34,9 @@ final class SeedDemoCommand extends Command
         parent::__construct();
     }
 
+    /**
+     * Persists the deterministic seed set only when no reviews exist and reports the chosen action.
+     */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         if ($this->reviews->count() > 0) {

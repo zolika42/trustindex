@@ -4,9 +4,18 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+/**
+ * Pure mapping service that turns a numeric company average into a presentation rating band.
+ *
+ * Keeping thresholds outside controllers/templates makes boundary behavior independently unit-testable
+ * and prevents duplicated label/CSS decisions in views.
+ */
 final class RatingClassifier
 {
     /**
+     * Maps an average rating to the stable label/CSS pair consumed by the company leaderboard.
+     * Threshold comparisons are intentionally inclusive at each upper band boundary.
+     *
      * @return array{label: string, cssClass: string}
      */
     public function classify(float $averageRating): array
