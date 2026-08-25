@@ -62,7 +62,7 @@ final class ReviewFlowTest extends WebTestCase
         $crawler = $this->client->request('GET', '/reviews/new');
         $form = $crawler->selectButton('Submit review')->form([
             'review[companyName]' => '',
-            'review[rating]' => '5',
+            'review[rating]' => '',
             'review[reviewText]' => '',
             'review[authorEmail]' => 'not-an-email',
         ]);
@@ -74,6 +74,22 @@ final class ReviewFlowTest extends WebTestCase
 
         $count = $this->entityManager->getRepository(Review::class)->count();
         self::assertSame(0, $count);
+    }
+
+    public function testOverlongEmailIsRejectedWithoutDatabaseError(): void
+    {
+        $crawler = $this->client->request('GET', '/reviews/new');
+        $form = $crawler->selectButton('Submit review')->form([
+            'review[companyName]' => 'Example Company',
+            'review[rating]' => '4',
+            'review[reviewText]' => 'A valid review body.',
+            'review[authorEmail]' => str_repeat('a', 244).'@example.com',
+        ]);
+
+        $this->client->submit($form);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(0, $this->entityManager->getRepository(Review::class)->count());
     }
 
     public function testPublicSearchAndCompaniesPageExposeExpectedDataOnly(): void
