@@ -4,13 +4,13 @@ COMPOSER ?= composer
 CONSOLE := $(PHP) bin/console
 PHPUNIT := $(PHP) bin/phpunit
 COVERAGE_MIN ?= 90
-NPX ?= npx
+NPM ?= npm
 VITEPRESS_VERSION ?= 1.6.4
 VUE_VERSION ?= 3.5.21
 DOCS_PORT ?= 8088
-VITEPRESS := $(NPX) --yes --package=vitepress@$(VITEPRESS_VERSION) --package=vue@$(VUE_VERSION) vitepress
+VITEPRESS := ./node_modules/.bin/vitepress
 
-.PHONY: help install setup serve db-reset seed test test-unit test-functional coverage cs cs-fix lint qa ci docker-up docker-down docker-logs docs-generate docs docs-dev docs-check docs-smoke docs-up docs-down docs-logs
+.PHONY: help install setup serve db-reset seed test test-unit test-functional coverage cs cs-fix lint qa ci docker-up docker-down docker-logs docs-deps docs-generate docs docs-dev docs-check docs-smoke docs-up docs-down docs-logs
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n\nTargets:\n"} /^[a-zA-Z0-9_-]+:.*?##/ { printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -57,13 +57,16 @@ lint: ## Lint container, YAML and Twig
 	$(CONSOLE) lint:yaml config --parse-tags
 	$(CONSOLE) lint:twig templates
 
+docs-deps: ## Install pinned VitePress/Vue runtime locally without committing npm state
+	$(NPM) install --no-save --no-package-lock --ignore-scripts --no-audit --no-fund vitepress@$(VITEPRESS_VERSION) vue@$(VUE_VERSION)
+
 docs-generate: ## Generate repository-derived Developer Guide/Handbook/code reference
 	$(PHP) bin/build-docs.php
 
-docs: docs-generate ## Build the complete static VitePress HTML documentation
+docs: docs-generate docs-deps ## Build the complete static VitePress HTML documentation
 	$(VITEPRESS) build docs
 
-docs-dev: docs-generate ## Run VitePress with live reload on http://127.0.0.1:8088
+docs-dev: docs-generate docs-deps ## Run VitePress with live reload on http://127.0.0.1:8088
 	$(VITEPRESS) dev docs --host 127.0.0.1 --port $(DOCS_PORT)
 
 docs-check: docs ## Build documentation and verify required generated HTML entry points
