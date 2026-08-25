@@ -48,8 +48,8 @@ jobs:
           APP_ENV: test
           DATABASE_URL: "sqlite:///%kernel.project_dir%/var/ci.db"
         run: |
+          mkdir -p var
           rm -f var/ci.db
-          php bin/console doctrine:database:create --if-not-exists
           php bin/console doctrine:migrations:migrate --no-interaction
           php bin/console doctrine:schema:validate
 

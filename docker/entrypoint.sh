@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-php bin/console doctrine:database:create --if-not-exists
+mkdir -p var
 php bin/console doctrine:migrations:migrate --no-interaction
 php bin/console app:seed-demo
 

@@ -20,8 +20,8 @@ serve: ## Run the local Symfony/PHP test server at http://127.0.0.1:8000
 	$(PHP) -S 127.0.0.1:8000 -t public public/router.php
 
 db-reset: ## Recreate local SQLite DB, run migrations and seed demo data
+	mkdir -p var
 	rm -f var/app.db
-	$(CONSOLE) doctrine:database:create --if-not-exists
 	$(CONSOLE) doctrine:migrations:migrate --no-interaction
 	$(CONSOLE) app:seed-demo
 

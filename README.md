@@ -116,10 +116,10 @@ That command is supported directly.
 
 The local application uses SQLite to keep evaluation fast and dependency-free.
 
-Create the database and run the committed migration manually:
+Run the committed migration manually (SQLite creates the database file on first connection):
 
 ```bash
-php bin/console doctrine:database:create --if-not-exists
+mkdir -p var
 php bin/console doctrine:migrations:migrate --no-interaction
 ```
 
