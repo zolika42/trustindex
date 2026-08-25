@@ -1,0 +1,61 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Company statistics · {{ parent() }}{% endblock %}
+
+{% block body %}
+<section class="hero">
+    <div>
+        <div class="eyebrow">Aggregated company statistics</div>
+        <h1>Who earns the best ratings?</h1>
+        <p>Companies are ranked by average rating, then by review volume, with deterministic alphabetical tie-breaking.</p>
+    </div>
+    <div class="hero-note">
+        <strong>Transparent aggregation.</strong>
+        <p class="muted">Each row is calculated in the repository with COUNT and AVG queries — no hidden score manipulation.</p>
+    </div>
+</section>
+
+<section class="filter-card">
+    <form class="filter-form" method="get" action="{{ path('app_company_index') }}" style="grid-template-columns: 1fr auto">
+        <input class="input" type="search" name="q" value="{{ search }}" placeholder="Search company name…" aria-label="Search company name">
+        <button class="button" type="submit">Search</button>
+    </form>
+</section>
+
+{% if companies is empty %}
+    <div class="empty">
+        <h2>No companies found</h2>
+        <p class="muted">No aggregated review data matches your search.</p>
+    </div>
+{% else %}
+    <div class="card" style="padding: 8px 14px">
+        <table class="company-table">
+            <thead>
+                <tr>
+                    <th>Company</th>
+                    <th>Reviews</th>
+                    <th>Average</th>
+                    <th>Signal</th>
+                    <th>Latest review</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for company in companies %}
+                <tr>
+                    <td><strong>{{ company.companyName }}</strong></td>
+                    <td>{{ company.reviewCount }}</td>
+                    <td>
+                        <strong>{{ company.averageRating|number_format(2) }}</strong>
+                        {% include 'review/_stars.html.twig' with {rating: company.averageRating|round(0, 'common')} only %}
+                    </td>
+                    <td>
+                        <span class="badge {{ company.ratingBand.cssClass }}">{{ company.ratingBand.label }}</span>
+                    </td>
+                    <td class="meta">{{ company.lastReviewAt|date('M j, Y') }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endif %}
+{% endblock %}

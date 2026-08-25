@@ -1,0 +1,30 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Write a review · {{ parent() }}{% endblock %}
+
+{% block body %}
+<section class="form-card card">
+    <div class="eyebrow">Share your experience</div>
+    <h1 style="font-size: clamp(2rem, 5vw, 3.4rem)">Write a review</h1>
+    <p class="muted">All fields are required. Your email address is validated but never shown publicly.</p>
+
+    {{ form_start(form) }}
+        {{ form_errors(form) }}
+
+        {% for field in [form.companyName, form.rating, form.reviewText, form.authorEmail] %}
+            <div class="form-row">
+                {{ form_label(field) }}
+                {{ form_widget(field, {attr: {class: (field.vars.attr.class|default('') ~ ' input')|trim}}) }}
+                {{ form_errors(field) }}
+                {% if field.vars.help %}
+                    <div class="form-help">{{ field.vars.help }}</div>
+                {% endif %}
+            </div>
+        {% endfor %}
+
+        <div class="form-row">
+            {{ form_widget(form.submit) }}
+        </div>
+    {{ form_end(form) }}
+</section>
+{% endblock %}

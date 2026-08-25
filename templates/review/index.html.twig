@@ -1,0 +1,69 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Company reviews · {{ parent() }}{% endblock %}
+
+{% block body %}
+<section class="hero">
+    <div>
+        <div class="eyebrow">Public company reviews</div>
+        <h1>Useful reviews, without the noise.</h1>
+        <p>Browse recent customer experiences, filter by rating, or search for a company by name.</p>
+    </div>
+    <div class="hero-note">
+        <strong>Privacy by default.</strong>
+        <p class="muted">Reviewer email addresses are validated and stored, but intentionally never exposed on public pages.</p>
+    </div>
+</section>
+
+<section class="filter-card" aria-label="Review filters">
+    <form class="filter-form" method="get" action="{{ path('app_review_index') }}">
+        <input class="input" type="search" name="q" value="{{ search }}" placeholder="Search company name…" aria-label="Search company name">
+        <select name="rating" aria-label="Filter by rating">
+            <option value="">All ratings</option>
+            {% for value in 5..1 %}
+                <option value="{{ value }}" {{ rating == value ? 'selected' : '' }}>{{ value }} star{{ value == 1 ? '' : 's' }}</option>
+            {% endfor %}
+        </select>
+        <button class="button" type="submit">Filter</button>
+    </form>
+</section>
+
+<section class="stats" aria-label="Review overview">
+    <div class="stat-card">
+        <div class="stat-label">Matching reviews</div>
+        <div class="stat-value">{{ overview.reviewCount }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Average rating</div>
+        <div class="stat-value">
+            {{ overview.averageRating is null ? '—' : overview.averageRating|number_format(2) }}
+        </div>
+    </div>
+</section>
+
+{% if reviews is empty %}
+    <div class="empty">
+        <h2>No reviews found</h2>
+        <p class="muted">Try changing the filters or be the first to review this company.</p>
+        <a class="button" href="{{ path('app_review_new') }}">Write a review</a>
+    </div>
+{% else %}
+    <section class="review-grid" aria-label="Reviews">
+        {% for review in reviews %}
+            <article class="card">
+                <div class="card-top">
+                    <div>
+                        <div class="company-name">{{ review.companyName }}</div>
+                        <div class="meta">{{ review.createdAt|date('M j, Y') }}</div>
+                    </div>
+                    {% include 'review/_stars.html.twig' with {rating: review.rating} only %}
+                </div>
+                <p class="review-text">
+                    {{ review.reviewText|length > 180 ? review.reviewText|slice(0, 180) ~ '…' : review.reviewText }}
+                </p>
+                <a class="link" href="{{ path('app_review_show', {id: review.id}) }}">Read full review →</a>
+            </article>
+        {% endfor %}
+    </section>
+{% endif %}
+{% endblock %}

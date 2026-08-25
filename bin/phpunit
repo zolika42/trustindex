@@ -1,0 +1,22 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+$phpunit = dirname(__DIR__).'/vendor/bin/phpunit';
+
+if (!is_file($phpunit)) {
+    fwrite(STDERR, "PHPUnit is not installed. Run \"composer install\" first.\n");
+    exit(1);
+}
+
+$arguments = array_map('escapeshellarg', array_slice($argv, 1));
+$command = sprintf(
+    '%s %s %s',
+    escapeshellarg(PHP_BINARY),
+    escapeshellarg($phpunit),
+    implode(' ', $arguments),
+);
+
+passthru($command, $exitCode);
+exit($exitCode);

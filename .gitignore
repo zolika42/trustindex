@@ -1,0 +1,11 @@
+/.env.local
+/.env.*.local
+/vendor/
+/var/*
+!/var/.gitkeep
+.phpunit.result.cache
+/.phpunit.cache/
+/coverage/
+.DS_Store
+.idea/
+.vscode/

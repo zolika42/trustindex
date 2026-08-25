@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: PHP 8.2 quality gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: ctype, iconv, pdo_sqlite, simplexml
+          coverage: xdebug
+          tools: composer:v2
+
+      - name: Validate Composer metadata
+        run: composer validate --strict
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Preserve generated lock file
+        uses: actions/upload-artifact@v4
+        with:
+          name: composer-lock
+          path: composer.lock
+
+      - name: Coding standards
+        run: make cs
+
+      - name: Symfony/Twig/YAML lint
+        run: make lint
+
+      - name: Verify migrations from a clean database
+        env:
+          APP_ENV: test
+          DATABASE_URL: "sqlite:///%kernel.project_dir%/var/ci.db"
+        run: |
+          rm -f var/ci.db
+          php bin/console doctrine:database:create --if-not-exists
+          php bin/console doctrine:migrations:migrate --no-interaction
+          php bin/console doctrine:schema:validate
+
+      - name: PHPUnit
+        run: make test
+
+      - name: Coverage gate
+        run: make coverage COVERAGE_MIN=90
+
+  demo-container:
+    name: Disposable demo server smoke test
+    runs-on: ubuntu-latest
+    needs: quality
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build demo image
+        run: docker build -t trustindex-demo .
+
+      - name: Start disposable test server
+        run: docker run -d --name trustindex-demo -p 8080:8000 trustindex-demo
+
+      - name: Smoke test public routes
+        run: |
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8080/ >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+          curl --fail --silent http://127.0.0.1:8080/ | grep -q "Trustindex Reviews"
+          curl --fail --silent http://127.0.0.1:8080/companies | grep -q "Aggregated company statistics"
+          curl --fail --silent http://127.0.0.1:8080/reviews/new | grep -q "Write a review"
+
+      - name: Print container logs on failure
+        if: failure()
+        run: docker logs trustindex-demo

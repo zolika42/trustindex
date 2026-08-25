@@ -1,0 +1,20 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ review.companyName }} review · {{ parent() }}{% endblock %}
+
+{% block body %}
+<article class="detail card">
+    <div class="eyebrow">Review #{{ review.id }}</div>
+    <div class="card-top">
+        <div>
+            <h1 style="font-size: clamp(2rem, 5vw, 3.8rem)">{{ review.companyName }}</h1>
+            <div class="meta">Published {{ review.createdAt|date('F j, Y · H:i') }}</div>
+        </div>
+        {% include 'review/_stars.html.twig' with {rating: review.rating} only %}
+    </div>
+
+    <p class="review-text">{{ review.reviewText }}</p>
+
+    <a class="link" href="{{ path('app_review_index') }}">← Back to all reviews</a>
+</article>
+{% endblock %}

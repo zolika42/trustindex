@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Trustindex company review demo application">
+    <title>{% block title %}{{ app_name }}{% endblock %}</title>
+    <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
+</head>
+<body>
+<header class="site-header">
+    <div class="container nav">
+        <a class="brand" href="{{ path('app_review_index') }}">
+            <span class="brand-mark">★</span>
+            <span>Trustindex Reviews</span>
+        </a>
+        <nav class="nav-links" aria-label="Primary navigation">
+            <a class="nav-link" href="{{ path('app_review_index') }}">Reviews</a>
+            <a class="nav-link" href="{{ path('app_company_index') }}">Companies</a>
+            <a class="button" href="{{ path('app_review_new') }}">Write a review</a>
+        </nav>
+    </div>
+</header>
+
+<main class="container">
+    {% for message in app.flashes('success') %}
+        <div class="flash" role="status">{{ message }}</div>
+    {% endfor %}
+
+    {% block body %}{% endblock %}
+</main>
+
+<footer class="footer">
+    <div class="container">
+        Symfony 7.4 · Doctrine ORM · Twig · PHPUnit · built as a focused engineering exercise.
+    </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,16 @@
+services:
+  app:
+    build:
+      context: .
+    ports:
+      - "8080:8000"
+    environment:
+      APP_ENV: dev
+      APP_DEBUG: "1"
+      APP_SECRET: local-demo-secret
+      DATABASE_URL: sqlite:////app/var/demo.db
+    volumes:
+      - demo_var:/app/var
+
+volumes:
+  demo_var:
