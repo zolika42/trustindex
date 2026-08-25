@@ -11,7 +11,7 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
-COPY composer.json ./
+COPY composer.json composer.lock ./
 RUN composer install --prefer-dist --no-interaction --no-progress --no-scripts
 
 COPY . .
