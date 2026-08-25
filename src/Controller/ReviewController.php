@@ -20,7 +20,7 @@ final class ReviewController extends AbstractController
     {
         $search = trim($request->query->getString('q'));
         $rating = $request->query->getInt('rating');
-        $rating = in_array($rating, [1, 2, 3, 4, 5], true) ? $rating : null;
+        $rating = \in_array($rating, [1, 2, 3, 4, 5], true) ? $rating : null;
 
         return $this->render('review/index.html.twig', [
             'reviews' => $reviews->findForHomepage($search, $rating),
