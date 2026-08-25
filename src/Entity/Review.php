@@ -64,9 +64,9 @@ class Review
         return $this->companyName;
     }
 
-    public function setCompanyName(string $companyName): self
+    public function setCompanyName(?string $companyName): self
     {
-        $this->companyName = trim($companyName);
+        $this->companyName = trim($companyName ?? '');
 
         return $this;
     }
@@ -76,9 +76,9 @@ class Review
         return $this->rating;
     }
 
-    public function setRating(int $rating): self
+    public function setRating(?int $rating): self
     {
-        $this->rating = $rating;
+        $this->rating = $rating ?? 0;
 
         return $this;
     }
@@ -88,9 +88,9 @@ class Review
         return $this->reviewText;
     }
 
-    public function setReviewText(string $reviewText): self
+    public function setReviewText(?string $reviewText): self
     {
-        $this->reviewText = trim($reviewText);
+        $this->reviewText = trim($reviewText ?? '');
 
         return $this;
     }
@@ -100,9 +100,9 @@ class Review
         return $this->authorEmail;
     }
 
-    public function setAuthorEmail(string $authorEmail): self
+    public function setAuthorEmail(?string $authorEmail): self
     {
-        $this->authorEmail = strtolower(trim($authorEmail));
+        $this->authorEmail = strtolower(trim($authorEmail ?? ''));
 
         return $this;
     }
