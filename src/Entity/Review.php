@@ -39,6 +39,7 @@ class Review
     #[ORM\Column(length: 255)]
     #[Assert\NotBlank]
     #[Assert\Email]
+    #[Assert\Length(max: 255)]
     private string $authorEmail = '';
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
