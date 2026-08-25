@@ -31,6 +31,7 @@ final class ReviewType extends AbstractType
             ])
             ->add('rating', ChoiceType::class, [
                 'label' => 'Rating',
+                'placeholder' => 'Choose a rating',
                 'choices' => [
                     '★★★★★ — Excellent' => 5,
                     '★★★★☆ — Very good' => 4,
