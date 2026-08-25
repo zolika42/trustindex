@@ -61,6 +61,28 @@ jobs:
       - name: Build and smoke-test documentation
         run: make docs-smoke
 
+      - name: Start generated HTML documentation server
+        run: docker compose up -d docs
+
+      - name: Smoke test documentation over HTTP
+        run: |
+          ready=0
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8088/ | grep -q "Trustindex Reviews documentation"; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+
+          if [ "$ready" -ne 1 ]; then
+            docker compose logs docs
+            exit 1
+          fi
+
+          curl --fail --silent http://127.0.0.1:8088/DEVELOPER_GUIDE | grep -q "Developer guide"
+          curl --fail --silent http://127.0.0.1:8088/code-reference/ | grep -q "Generated code reference"
+
       - name: Upload HTML documentation
         uses: actions/upload-artifact@v4
         with:
@@ -68,6 +90,10 @@ jobs:
           path: docs/dist
           if-no-files-found: error
           retention-days: 14
+
+      - name: Stop documentation server
+        if: always()
+        run: docker compose stop docs
 
   demo-container:
     name: Disposable demo server smoke test
