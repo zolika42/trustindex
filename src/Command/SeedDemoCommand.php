@@ -55,7 +55,7 @@ final class SeedDemoCommand extends Command
 
         $this->entityManager->flush();
 
-        $output->writeln(sprintf('<info>Seeded %d demo reviews.</info>', count($rows)));
+        $output->writeln(\sprintf('<info>Seeded %d demo reviews.</info>', \count($rows)));
 
         return Command::SUCCESS;
     }
