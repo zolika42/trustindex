@@ -43,6 +43,7 @@ test-functional: ## Run functional and integration tests
 	$(PHPUNIT) tests/Functional tests/Integration
 
 coverage: ## Generate Clover coverage and enforce meaningful-code threshold
+	@$(PHP) -r 'exit(extension_loaded("xdebug") || extension_loaded("pcov") ? 0 : 1);' || { echo "Coverage driver missing: install/enable Xdebug or PCOV for this PHP runtime."; exit 1; }
 	XDEBUG_MODE=coverage $(PHPUNIT) --coverage-text --coverage-clover=var/coverage.xml
 	$(PHP) bin/check-coverage.php var/coverage.xml $(COVERAGE_MIN)
 
@@ -66,7 +67,7 @@ docs-generate: ## Generate repository-derived Developer Guide/Handbook/code refe
 docs: docs-generate docs-deps ## Build the complete static VitePress HTML documentation
 	$(VITEPRESS) build docs
 
-docs-dev: docs-generate docs-deps ## Run VitePress with live reload on http://127.0.0.1:8088
+docs-dev: docs-generate docs-deps ## Run VitePress with live reload on the configurable documentation port
 	$(VITEPRESS) dev docs --host 127.0.0.1 --port $(DOCS_PORT)
 
 docs-check: docs ## Build documentation and verify required generated HTML entry points
@@ -88,7 +89,7 @@ ci: ## Reproduce the main CI quality gate locally
 	$(MAKE) coverage
 
 docker-up: docs ## Build/run the seeded demo and documentation services
-	docker compose up --build -d app docs
+	DOCS_PORT=$(DOCS_PORT) docker compose up --build -d app docs
 
 docker-down: ## Stop the local Docker services
 	docker compose down
@@ -96,8 +97,8 @@ docker-down: ## Stop the local Docker services
 docker-logs: ## Follow demo server logs
 	docker compose logs -f app
 
-docs-up: docs ## Serve generated documentation at http://127.0.0.1:8088
-	docker compose up -d docs
+docs-up: docs ## Serve generated documentation (default port 8088; override with DOCS_PORT=...)
+	DOCS_PORT=$(DOCS_PORT) docker compose up -d docs
 
 docs-down: ## Stop only the documentation service
 	docker compose stop docs
