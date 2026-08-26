@@ -29,6 +29,14 @@ The Compose `docs` service therefore does **not** use the stock Nginx routing be
 
 The same Nginx configuration exposes `/healthz` for Docker/CI readiness checks. Readiness is deliberately independent of page copy so changing a documentation title cannot make the service appear unhealthy.
 
+The default host port is `8088`, but the Makefile and Compose contract share a configurable `DOCS_PORT`. A developer can avoid a local collision without editing YAML:
+
+```bash
+make docs-up DOCS_PORT=8089
+```
+
+The override is propagated to `make docs-dev` and `make docker-up` as well. CI intentionally uses the default `8088` contract.
+
 ## Generated Developer Guide
 
 `docs/DEVELOPER_GUIDE.md` is generated output. It derives its runtime contract from the current repository and includes:
@@ -68,7 +76,7 @@ Freshness is enforced in several places:
 - `make ci` therefore includes docs automatically;
 - GitHub Actions builds the HTML portal on every push/PR;
 - CI starts the real Compose Nginx `docs` service and verifies its `/healthz` endpoint;
-- CI smoke-tests representative clean URLs and directory-style documentation URLs over HTTP on port `8088`;
+- CI smoke-tests representative clean URLs and directory-style documentation URLs over HTTP on the default port `8088`;
 - CI uploads the completed static portal as the `trustindex-documentation-html` artifact;
 - the generator fails if required Make targets disappear;
 - the generator fails when an application class or method lacks PHPDoc;
@@ -77,11 +85,13 @@ Freshness is enforced in several places:
 ## Local commands
 
 ```bash
-make docs-deps     # install pinned local VitePress/Vue runtime
-make docs          # generate reference + build static HTML
-make docs-dev      # VitePress development server
-make docs-smoke    # generate/build + verify HTML entry points
-make docs-up       # serve docs/dist through Nginx on :8088
+make docs-deps                    # install pinned local VitePress/Vue runtime
+make docs                         # generate reference + build static HTML
+make docs-dev                     # VitePress dev server on default :8088
+make docs-dev DOCS_PORT=8089      # same server on an alternate port
+make docs-smoke                   # generate/build + verify HTML entry points
+make docs-up                      # serve docs/dist through Nginx on default :8088
+make docs-up DOCS_PORT=8089       # serve through Nginx on an alternate host port
 make docs-down
 make docs-logs
 ```
