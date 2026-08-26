@@ -45,7 +45,15 @@ make docs-logs
 make docs-down
 ```
 
-The static site is served at `http://127.0.0.1:8088` by a dedicated Nginx service. `docs/dist` is mounted read-only.
+The static site is served at `http://127.0.0.1:8088` by default through a dedicated Nginx service. `docs/dist` is mounted read-only.
+
+If `8088` is already used by another local process/container, choose another host port without editing repository files:
+
+```bash
+make docs-up DOCS_PORT=8089
+```
+
+The same override works with `make docs-dev` and `make docker-up`.
 
 ## Common failures
 
@@ -69,6 +77,33 @@ php -m | grep -i sqlite
 
 Install/enable `pdo_sqlite` for the PHP runtime you are using.
 
+### Coverage driver missing
+
+`make coverage` requires Xdebug or PCOV in the **same PHP runtime** that executes `php bin/phpunit`.
+
+Check:
+
+```bash
+php --version
+php -m | grep -Ei 'xdebug|pcov'
+```
+
+On current macOS/Homebrew PHP installations the preferred Xdebug installer is PIE:
+
+```bash
+brew install pie
+pie install xdebug/xdebug
+php -v
+```
+
+Then rerun:
+
+```bash
+make coverage
+```
+
+CI already installs Xdebug explicitly, so this is a local workstation prerequisite rather than an application defect.
+
 ### Migration/schema mismatch
 
 Run:
@@ -79,6 +114,17 @@ php bin/console doctrine:schema:validate
 ```
 
 If mapping changed intentionally, create and commit a migration rather than forcing the schema.
+
+### `config/reference.php` appears as untracked
+
+Symfony 7.4 auto-generates `config/reference.php` from the installed bundles to improve IDE completion and static analysis for PHP configuration. It is application source metadata, not disposable cache output.
+
+Commit it when Symfony generates or updates it:
+
+```bash
+git add config/reference.php
+git commit -m "chore: add Symfony configuration reference"
+```
 
 ### VitePress / Node failure
 
@@ -97,11 +143,24 @@ This is intentional. Add a concise class/method PHPDoc that explains responsibil
 
 ### Port already in use
 
+Default ports are:
+
 - application PHP server: `8000`
 - Docker demo: `8080`
 - documentation: `8088`
 
-Stop the conflicting process/container or use the relevant command directly with another port where supported.
+On macOS, identify what owns the documentation port with:
+
+```bash
+lsof -nP -iTCP:8088 -sTCP:LISTEN
+docker ps --filter publish=8088
+```
+
+If that service should remain running, use another documentation port instead of killing it:
+
+```bash
+make docs-up DOCS_PORT=8089
+```
 
 ## CI troubleshooting order
 
