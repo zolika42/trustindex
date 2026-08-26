@@ -21,6 +21,14 @@ The structure intentionally mirrors the ColumbiaGames CCM v2 documentation model
 
 There is no second custom Markdown renderer and no hand-maintained HTML copy. `node_modules/` and every generated documentation output are disposable build state and are never committed.
 
+## HTML serving and clean URLs
+
+VitePress is configured with `cleanUrls: true`, so navigation links intentionally use paths such as `/DEVELOPER_GUIDE`, `/testing` and `/operations` even though the static build contains files such as `DEVELOPER_GUIDE.html` and `testing.html`.
+
+The Compose `docs` service therefore does **not** use the stock Nginx routing behavior. It mounts `docker/nginx-docs.conf`, whose `try_files` rule resolves clean URLs to generated `.html` files and preserves directory-style pages such as `/architecture/` and `/code-reference/`.
+
+The same Nginx configuration exposes `/healthz` for Docker/CI readiness checks. Readiness is deliberately independent of page copy so changing a documentation title cannot make the service appear unhealthy.
+
 ## Generated Developer Guide
 
 `docs/DEVELOPER_GUIDE.md` is generated output. It derives its runtime contract from the current repository and includes:
@@ -59,7 +67,8 @@ Freshness is enforced in several places:
 - `make qa` includes the docs build/smoke gate;
 - `make ci` therefore includes docs automatically;
 - GitHub Actions builds the HTML portal on every push/PR;
-- CI starts the real Compose Nginx `docs` service and smoke-tests the overview, Developer Guide and code reference over HTTP on port `8088`;
+- CI starts the real Compose Nginx `docs` service and verifies its `/healthz` endpoint;
+- CI smoke-tests representative clean URLs and directory-style documentation URLs over HTTP on port `8088`;
 - CI uploads the completed static portal as the `trustindex-documentation-html` artifact;
 - the generator fails if required Make targets disappear;
 - the generator fails when an application class or method lacks PHPDoc;
