@@ -98,8 +98,8 @@ jobs:
           check_page "http://127.0.0.1:8088/" "Trustindex Reviews documentation"
           check_page "http://127.0.0.1:8088/DEVELOPER_GUIDE" "Developer guide"
           check_page "http://127.0.0.1:8088/DEVELOPER_HANDBOOK" "Generated developer handbook"
-          check_page "http://127.0.0.1:8088/testing" "Testing strategy"
-          check_page "http://127.0.0.1:8088/operations" "Operations"
+          check_page "http://127.0.0.1:8088/testing" "Testing and quality strategy"
+          check_page "http://127.0.0.1:8088/operations" "Operations and troubleshooting"
           check_page "http://127.0.0.1:8088/architecture/" "Architecture"
           check_page "http://127.0.0.1:8088/code-reference/" "Generated code reference"
 
