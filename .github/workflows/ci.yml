@@ -68,20 +68,40 @@ jobs:
         run: |
           ready=0
           for i in $(seq 1 30); do
-            if curl --fail --silent http://127.0.0.1:8088/ | grep -q "Trustindex Reviews documentation"; then
+            if curl --fail --silent --show-error http://127.0.0.1:8088/healthz | grep -qx "ok"; then
               ready=1
               break
             fi
+            echo "Attempt ${i}: waiting for documentation server health check..."
             sleep 1
           done
 
           if [ "$ready" -ne 1 ]; then
+            echo "Documentation server did not become healthy."
+            docker compose ps docs
             docker compose logs docs
             exit 1
           fi
 
-          curl --fail --silent http://127.0.0.1:8088/DEVELOPER_GUIDE | grep -q "Developer guide"
-          curl --fail --silent http://127.0.0.1:8088/code-reference/ | grep -q "Generated code reference"
+          check_page() {
+            url="$1"
+            expected="$2"
+            echo "Checking ${url}"
+            if ! curl --fail --silent --show-error "$url" | grep -Fq "$expected"; then
+              echo "Documentation page check failed: ${url} (expected: ${expected})"
+              docker compose ps docs
+              docker compose logs docs
+              exit 1
+            fi
+          }
+
+          check_page "http://127.0.0.1:8088/" "Trustindex Reviews documentation"
+          check_page "http://127.0.0.1:8088/DEVELOPER_GUIDE" "Developer guide"
+          check_page "http://127.0.0.1:8088/DEVELOPER_HANDBOOK" "Generated developer handbook"
+          check_page "http://127.0.0.1:8088/testing" "Testing strategy"
+          check_page "http://127.0.0.1:8088/operations" "Operations"
+          check_page "http://127.0.0.1:8088/architecture/" "Architecture"
+          check_page "http://127.0.0.1:8088/code-reference/" "Generated code reference"
 
       - name: Upload HTML documentation
         uses: actions/upload-artifact@v4
